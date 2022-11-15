@@ -117,6 +117,6 @@ public class SwiftNativeScreenshotPlugin: NSObject, FlutterPlugin {
         
         self.screenshotPath = path
         
-        writeImageToGallery(image: image)
+        // writeImageToGallery(image: image)
     } // takeScreenshot()
 } // SwiftNativeScreenshotPlugin
