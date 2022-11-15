@@ -1,5 +1,7 @@
 package jpg.ivan.native_screenshot;
 
+import java.io.ByteArrayOutputStream;
+
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
@@ -132,6 +134,20 @@ public class NativeScreenshotPlugin implements MethodCallHandler, FlutterPlugin,
 	// MethodCall, manage stuff coming from Dart
 	@Override
 	public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
+			if (call.method.equals("takeScreenshot")) {
+			handleTakeScreenshot(result);
+			return;
+		}
+		if (call.method.equals("takeScreenshotImage")) {
+			handleTakeScreenshotImage(result);
+			return;
+		}
+		Log.println(Log.INFO, TAG, "Method " + call.method + " not implemented!");
+		result.notImplemented();
+		return;
+	}
+
+	private void handleTakeScreenshot(@NonNull Result result) {
 		if( !permissionToWrite() ) {
 			Log.println(Log.INFO, TAG, "Permission to write files missing!");
 
@@ -140,13 +156,7 @@ public class NativeScreenshotPlugin implements MethodCallHandler, FlutterPlugin,
 			return;
 		} // if cannot write
 
-		if( !call.method.equals("takeScreenshot") ) {
-			Log.println(Log.INFO, TAG, "Method not implemented!");
-
-			result.notImplemented();
-
-			return;
-		} // if not implemented
+	
 
 
 		// Need to fix takeScreenshot()
@@ -318,20 +328,36 @@ public class NativeScreenshotPlugin implements MethodCallHandler, FlutterPlugin,
 		}
 	} // takeScreenshot()
 
-	private void takeScreenshotOld() {
-		Log.println(Log.INFO, TAG, "Trying to take screenshot [old way]");
-
+	
+private Bitmap getBitmapOld() {
+		View view = null;
 		try {
-			View view = this.activity.getWindow().getDecorView().getRootView();
+			view = this.activity.getWindow().getDecorView().getRootView();
 
 			view.setDrawingCacheEnabled(true);
 
 			Bitmap bitmap = null;
 			if (this.renderer.getClass() == FlutterView.class) {
 				bitmap = ((FlutterView) this.renderer).getBitmap();
-			} else if(this.renderer.getClass() == FlutterRenderer.class ) {
-				bitmap = ( (FlutterRenderer) this.renderer ).getBitmap();
+			} else if (this.renderer.getClass() == FlutterRenderer.class) {
+				bitmap = ((FlutterRenderer) this.renderer).getBitmap();
 			}
+			return bitmap;
+		} catch (Exception ex) {
+			Log.println(Log.INFO, TAG, "Error taking screenshot: " + ex.getMessage());
+		} finally {
+			if (view != null) {
+				view.setDrawingCacheEnabled(false);
+			}
+				}
+		return null;
+	}
+
+	private void takeScreenshotOld() {
+		Log.println(Log.INFO, TAG, "Trying to take screenshot [old way]");
+
+			try {
+			Bitmap bitmap = getBitmapOld();
 
 			if(bitmap == null) {
 				this.ssError = true;
@@ -341,8 +367,6 @@ public class NativeScreenshotPlugin implements MethodCallHandler, FlutterPlugin,
 
 				return;
 			} // if
-
-			view.setDrawingCacheEnabled(false);
 
 			String path = writeBitmap(bitmap);
 			if( path == null || path.isEmpty() ) {
@@ -390,4 +414,28 @@ public class NativeScreenshotPlugin implements MethodCallHandler, FlutterPlugin,
 
 		return false;
 	} // permissionToWrite()
-} // NativeScreenshotPlugin
+
+
+	private void handleTakeScreenshotImage(@NonNull Result result) {
+		try {
+			Log.i(TAG, "Capturing bitmap");
+			Bitmap bitmap = getBitmapOld();
+			if (bitmap == null) {
+				Log.e(TAG, "Bitmap capture failed");
+				result.success(null);
+				return;
+			}
+			Log.i(TAG, "Converting bitmap to png");
+			ByteArrayOutputStream oStream = new ByteArrayOutputStream();
+			bitmap.compress(Bitmap.CompressFormat.PNG, 100, oStream);
+			oStream.flush();
+			oStream.close();
+			Log.i(TAG, "Success");
+			result.success(oStream.toByteArray());
+		} catch (Exception ex) {
+			Log.e(TAG, "Bitmap capture failed: " + ex);
+			result.success(null);
+		}
+	}
+
+	} // NativeScreenshotPlugin

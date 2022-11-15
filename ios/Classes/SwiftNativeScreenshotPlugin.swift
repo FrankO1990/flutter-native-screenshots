@@ -29,17 +29,23 @@ public class SwiftNativeScreenshotPlugin: NSObject, FlutterPlugin {
     } // register()
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-        if call.method != "takeScreenshot" {
-            result(FlutterMethodNotImplemented)
-        
-            return
-        } // if
+                if call.method == "takeScreenshot" {
+            handleTakeScreenshot(result: result)
+        } else if call.method == "takeScreenshotImage" {
+            handleTakeScreenshotImage(result: result)
+        }
+        result(FlutterMethodNotImplemented)
+
+        return
+    }
+
+    func handleTakeScreenshot(result: @escaping FlutterResult) {
         
         self.result = result
         
         // FIX: add posibility to choose if gallery or some path
         takeScreenshot(view: controller.view)
-    } // handle()
+    } // handleHandleTakeScreenshot()
     
     func getScreenshotName() -> String {
         let format = DateFormatter()
@@ -94,7 +100,7 @@ public class SwiftNativeScreenshotPlugin: NSObject, FlutterPlugin {
         ); // UIImageWriteToSavedPhotosAlbum()
     } // writeImageToGallery()
     
-    func takeScreenshot(view: UIView, toImageGallery :Bool = true) {
+    func captureImage(view: UIView) -> UIImage? {
         let scale :CGFloat = UIScreen.main.scale
         
         UIGraphicsBeginImageContextWithOptions(view.bounds.size, view.isOpaque, scale)
@@ -102,6 +108,12 @@ public class SwiftNativeScreenshotPlugin: NSObject, FlutterPlugin {
         view.drawHierarchy(in: view.bounds, afterScreenUpdates: true)
         let optionalImage :UIImage? = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
+        
+        return optionalImage
+    }
+
+    func takeScreenshot(view: UIView, toImageGallery :Bool = true) {
+        let optionalImage :UIImage? = captureImage(view: view)
         
         guard let image = optionalImage else {
             result(nil)
@@ -117,6 +129,20 @@ public class SwiftNativeScreenshotPlugin: NSObject, FlutterPlugin {
         
         self.screenshotPath = path
         
-        // writeImageToGallery(image: image)
+        writeImageToGallery(image: image)
     } // takeScreenshot()
+
+    func handleTakeScreenshotImage(result: @escaping FlutterResult) {
+        let optionalImage :UIImage? = captureImage(view: controller.view)
+        guard let image = optionalImage else {
+            result(nil)
+            return
+        }
+        guard let imageData = image.pngData() else {
+            result(nil)
+            return
+        }
+        result(imageData)
+    } // handleTakeScreenshotImage()
+    
 } // SwiftNativeScreenshotPlugin
